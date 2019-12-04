@@ -103,6 +103,89 @@ class FileSystem{
   }
 
   /*
+   * DESC: Executes command given if it exists. Returns error string otherwise.
+   * PARAM TYPE: String
+   * RETRN TYPE: String
+   */
+  executeCommand(command){
+    if(this[command[0]]){
+      return this[command[0]](command.splice(1).sort());
+    }else{
+      return command[0]+': command not found\n';
+    }
+  }
+
+  /*
+   * DESC: finds Node of correspoding path.
+   * PARAM TYPE: String
+   * RETRN TYPE: [Node, assumedNameForNewNode], [Node, null], null
+   */
+  findPath(path){
+    console.log('path:');
+    console.log(path);
+    /* Split path string at '/' */
+    var pathSplit = path.split('/');
+    console.log('pathSplit:');
+    console.log(pathSplit);
+
+    /* On split, some indices may contain ''. Delete those that do */
+    for(var i = 0; i < pathSplit.length; ++i){
+      if(pathSplit[i] == '')
+        pathSplit.splice(i, 1);
+    }
+
+    /* Check if path starts at root. Else begin search from cwd */
+    if(path[0] == '/'){
+      return this.findPathRecursive(pathSplit, this.root);
+    }else{
+      return this.findPathRecursive(pathSplit, this.cwd);
+    }
+  }
+
+  /*
+   * DESC: Helper for 'findPath.' Finds Node of correspoding path. If path is
+   *       for creating a new node, then the return value includes the name
+   *       of the new node, which is located at the end of the path. If the path
+   *       is for lookup only, the return value is [Node, null]. If there is an
+   *       error in the path, the return value is null.
+   * PARAM TYPE: String
+   * RETRN TYPE: [Node, assumedNameForNewNode], [Node, null], null
+   */
+  findPathRecursive(path, startNode){
+    /* Look for next node to traverse to using the next path name */
+    var nextNode = startNode.children[path[0]];
+
+    /*
+     * If path name exists, use the retrieved node to continue searching
+     * through the path. Splice the first element of 'path' so that the next
+     * path name is used in the next traversal.
+     */
+    if(nextNode)
+      return this.findPathRecursive(path.splice(1), nextNode);
+    /*
+     * If path name does not exist, then nextNode will be undefined. If 'path'
+     * has 1 or less names left to search through, the search was succesful
+     * in finding the last node of the path. If 'path' has more than 1 name
+     * left to look at, then we have encountered an error and so no such path
+     * exists; return null.
+     */
+    else if(path.length > 1)
+      return null;
+    /*
+     * As explained above, if the path search was successful, we will be at the
+     * end of the path. The last node encountered will be returned, along with
+     * the last name in the path.
+     *
+     * NOTE: The last name in the path is returned to facilitate the creation of
+     * a new node in the case that a path is used to describe where to create
+     * it. In commands like 'ls,' if a name is returned, this is considered a
+     * failure because if the name was a node it would have activated one more
+     * recursion and the name returned would have the value 'undefined'
+     */
+    return [startNode, path[0]];
+  }
+
+  /*
    * DESC: Initializes a new file system Node. Each node contains directories
            '.' and '..' on creation as well as files '.css' and '.html', which
            are used to render a Node's <section>.
@@ -126,53 +209,6 @@ class FileSystem{
   }
 
   /*
-   * DESC: Executes command given if it exists. Returns error string otherwise.
-   * PARAM TYPE: String
-   * RETRN TYPE: String
-   */
-  executeCommand(command){
-    if(this[command[0]]){
-      return this[command[0]](command.splice(1).sort());
-    }else{
-      return command[0]+': command not found';
-    }
-  }
-
-  /*
-   * DESC: finds Node of correspoding path.
-   * PARAM TYPE: String
-   * RETRN TYPE: [Node, assumedNameForNewNode], [Node, null], null
-   */
-  findPath(path){
-    var pathSplit = path.split('/');
-
-    /* Check if path starts at root. Else begin search from cwd */
-    if(path[0] == '/'){
-      return findPathRecursive(pathSplit, this.root);
-    }else{
-      return findPathRecursive(pathSplit, this.cwd);
-    }
-  }
-
-  /*
-   * DESC: Helper for 'findPath.' Finds Node of correspoding path. If path is
-   *       for creating a new node, then the return value includes the name
-   *       of the new node, which is located at the end of the path. If the path
-   *       is for lookup only, the return value is [Node, null]. If there is an
-   *       error in the path, the return value is null.
-   * PARAM TYPE: String
-   * RETRN TYPE: [Node, assumedNameForNewNode], [Node, null], null
-   */
-  findPathRecursive(path, startNode){
-    var nextNode = startNode[path[0]];
-    if(nextNode)
-      return findPathRecursive(path.splice(1), nextNode);
-    else if(path.length > 1)
-      return null;
-    return [startNode, path[0]];
-  }
-
-  /*
    * DESC: Sets contents of a child Node of cwd. Contents can be a file, image,
    *       etc.
    * PARAM TYPE: file, String
@@ -190,45 +226,61 @@ class FileSystem{
   ls(args){
     var output = '';
     var errorOutput = '';
+    var options = [];
 
     /*
      * If multiple arguments are listed, try to list all their contents. Else,
      * list the contents of the current working directory.
      */
+    console.log('args:');
+    console.log(args);
     if(args.length){
       /* Iterate through argument list */
       for(var i = 0; i < args.length; ++i){
-        var argChild = this.cwd.getChild(args[i]);
+        /* Retrieve Node of last element in path */
+        var pathResult = this.findPath(args[i]);
+        console.log('pathResult:');
+        console.log(pathResult);
 
-        if(argChild){
-          output += argChild.getName()+":\n";
-          output += argChild.toStringChildren();
+        /*
+         * Using path results, check if path search was successful. Else
+         * indicate error.
+         */
+        if(pathResult && pathResult[0] && pathResult[1] == null){
+          /*
+           * Print path if search result is of file type. Else print directory
+           * contents
+           */
+          if(pathResult[0].getType() == FILE)
+            output += args[i]+'\n';
+          else{
+            /* Only include name of directory if listing more than one */
+            if(args.length > 1)
+              output += pathResult[0].getName()+":\n";
+            output += pathResult[0].toStringChildren()+'\n';
+          }
         }else{
           errorOutput += 'ls: '+args[i]+': no such file or directory\n';
         }
       }
     }else{
-      output += this.cwd.toStringChildren();
+      output += this.cwd.toStringChildren()+'\n';
     }
 
     return errorOutput+output;
   }
 
-  /*
-   * Creates new directory under current working directory. Each new directory
-   * has two directories on creation: .css and .html, which hold structural
-   * style information about a directory.
-   */
-  mkdir(directoryNames){
-    for(var i = 0; i < directoryNames.length; ++i){
-      var newDirectory = new Node(DIRECTORY, directoryNames[i]);
-      var cssNode = new Node(FILE, '.css');
-      var htmlNode = new Node(FILE, '.html');
+  /* Creates new directory under specified path */
+  mkdir(paths){
+    for(var i = 0; i < paths.length; ++i){
+      /* Retrieve Node of where to put new Node using given path */
+      var pathResult = this.findPath(paths[0]);
+      var parentDirectory = pathResult[0];
+      var directoryName = pathResult[1];
 
-      newDirectory.addChild(cssNode);
-      newDirectory.addChild(htmlNode);
-
-      this.addChild(newDirectory);
+      /* Create new directory and add it to parent directory children */
+      var newDirectory = this.nodeInit(DIRECTORY, directoryName, parentDirectory);
+      parentDirectory.addChild(newDirectory);
     }
   }
 
@@ -239,6 +291,10 @@ class FileSystem{
   }
 }
 
+
+/* NOTES: mkdir and touch can use the same function to create nodes. Use a
+   separate function they both can use except each inserts the correct 'type'.
+*/
 
 
 
