@@ -4,59 +4,91 @@ const FILE = 'file';
 
 /* --------------------------------------------------------------------------
  *                               DESCRIPTION
- * Node class used as tree elements of file system class for file management.
+ * Node class used as tree elements of file system class.
  *
- * All directories or files are Nodes. Note that all Nodes are capable of
- * having children Nodes.
+ * NOTE: All directories or files are Nodes. All Nodes are capable of
+ * having child Nodes.
  * -------------------------------------------------------------------------- */
 class Node{
   constructor(type, name){
     this.type = type;
     this.name = name;
     this.children = {};
+    this.childCount = 0;
   }
 
-  /* Gets child based on name */
+  /*
+   * DESC: Adds new child Node to this Node's 'children' object in dictionary
+   *       form with the child Node's name as key and updates child count.
+   * PARAM TYPE: Array of Nodes
+   * RETRN TYPE: void
+   */
+  addChild(newChild, name=newChild.name){
+    this.children[name] = newChild;
+    this.childCount++;
+  }
+
+  /*
+   * DESC: Gets child based on name
+   * PARAM TYPE: String
+   * RETRN TYPE: Node
+   */
   getChild(name){
-    // for(var i = 0; i < this.children.length; ++i)
-    //   if(this.children[i].name == name)
-    //     return this.children[i];
-    // return null;
     return this.children[name];
   }
 
-  /* Returns Node name */
+  /*
+   * DESC: Gets count of children
+   * PARAM TYPE: void
+   * RETRN TYPE: Number
+   */
+  getChildCount(){
+    return this.childCount;
+  }
+
+  /*
+   * DESC: Returns Node name
+   * PARAM TYPE: void
+   * RETRN TYPE: String
+   */
   getName(){
     return this.name;
   }
 
-  /* Returns Node type. Available types are 'directory' or 'file' */
+  /*
+   * DESC: Returns Node type. Available types are 'directory' or 'file'
+   * PARAM TYPE: void
+   * RETRN TYPE: String
+   */
   getType(){
     return this.type;
   }
 
-  /* Sets contents of this Node. Contents can be a file, image, etc. */
+  /*
+   * DESC: Sets contents of this Node. Contents can be a file, image, etc.
+   * PARAM TYPE: file
+   * RETRN TYPE: void
+   */
   setContent(content){
     this.content = content;
   }
 
-  /* Sets a reference to parent of this Node. */
-  setParent(parent){
-    this.parent = parent;
-  }
-
-  /* Adds new child Node to this Node in dictionary form with its name as key */
-  addChild(newNodeChild){
-    this.children[newNodeChild.name] = newNodeChild;
-  }
-
-  /* Prints children of Node as tab divided list */
-  printChildren(){
+  /*
+   * DESC: Creates string consisting of names of child Nodes separated by
+   *       specified separator. Separator defaults to tab.
+   * PARAM TYPE: String or Char
+   * RETRN TYPE: String
+   */
+  toStringChildren(separator = '\t'){
     var output = '';
-    this.children.forEach(function(child){
-      output += child.getName()+'\t';
-    });
-    return output+'\b\n';
+    var loopCount = 0;
+    for(var name in this.children){
+      output += name;
+      if(loopCount+1 <= this.childCount)
+        output += separator;
+      loopCount++;
+    }
+    return output;
   }
 }
 
@@ -66,38 +98,89 @@ class Node{
  * -------------------------------------------------------------------------- */
 class FileSystem{
   constructor(){
-    /* Initialize root */
-    this.root = new Node(DIRECTORY, 'ROOT');
-    this.root.setParent(this.root);
-
-    var cssNode = new Node(FILE, '.css');
-    var htmlNode = new Node(FILE, '.html');
-
-    this.root.addChild(cssNode);
-    this.root.addChild(htmlNode);
-
-    /* Initialize current working directory */
+    this.root = this.nodeInit(DIRECTORY, 'ROOT');
     this.cwd = this.root;
   }
 
-  /* Sets contents of a child Node of cwd. Contents can be a file, image, etc.*/
-  addContent(content, fileName){
-    this.cwd.children[fileName].setContent(content);
+  /*
+   * DESC: Initializes a new file system Node. Each node contains directories
+           '.' and '..' on creation as well as files '.css' and '.html', which
+           are used to render a Node's <section>.
+   *
+   * PARAM TYPE: String, String, Node (defaults to null for creation of root)
+   * RETRN TYPE: Node
+   */
+  nodeInit(type, name, parent = null){
+    var newNode = new Node(type, name);
+    var css = new Node(FILE, '.css');
+    var html = new Node(FILE, '.html');
+
+    newNode.addChild(css);
+    newNode.addChild(html);
+    newNode.addChild(newNode, '.');
+    if(parent)
+      newNode.addChild(parent, '..');
+    else
+      newNode.addChild(newNode, '..');
+    return newNode;
   }
 
-   /* Executes command given if it exists. Returns error string otherwise. */
+  /*
+   * DESC: Executes command given if it exists. Returns error string otherwise.
+   * PARAM TYPE: String
+   * RETRN TYPE: String
+   */
   executeCommand(command){
-    /*
-     * If user's command has corresponding function, run function. Else, return
-     * string that indicates error.
-     */
     if(this[command[0]]){
-      console.log(command[0]+': command found');
       return this[command[0]](command.splice(1).sort());
     }else{
       return command[0]+': command not found';
     }
-   }
+  }
+
+  /*
+   * DESC: finds Node of correspoding path.
+   * PARAM TYPE: String
+   * RETRN TYPE: [Node, assumedNameForNewNode], [Node, null], null
+   */
+  findPath(path){
+    var pathSplit = path.split('/');
+
+    /* Check if path starts at root. Else begin search from cwd */
+    if(path[0] == '/'){
+      return findPathRecursive(pathSplit, this.root);
+    }else{
+      return findPathRecursive(pathSplit, this.cwd);
+    }
+  }
+
+  /*
+   * DESC: Helper for 'findPath.' Finds Node of correspoding path. If path is
+   *       for creating a new node, then the return value includes the name
+   *       of the new node, which is located at the end of the path. If the path
+   *       is for lookup only, the return value is [Node, null]. If there is an
+   *       error in the path, the return value is null.
+   * PARAM TYPE: String
+   * RETRN TYPE: [Node, assumedNameForNewNode], [Node, null], null
+   */
+  findPathRecursive(path, startNode){
+    var nextNode = startNode[path[0]];
+    if(nextNode)
+      return findPathRecursive(path.splice(1), nextNode);
+    else if(path.length > 1)
+      return null;
+    return [startNode, path[0]];
+  }
+
+  /*
+   * DESC: Sets contents of a child Node of cwd. Contents can be a file, image,
+   *       etc.
+   * PARAM TYPE: file, String
+   * RETRN TYPE: void
+   */
+  setContent(content, fileName){
+    this.cwd.children[fileName].setContent(content);
+  }
 
   /* ------------------------------------------------------------------------
    *                               COMMANDS
@@ -115,19 +198,17 @@ class FileSystem{
     if(args.length){
       /* Iterate through argument list */
       for(var i = 0; i < args.length; ++i){
-
-        /* Try to retrieve  */
         var argChild = this.cwd.getChild(args[i]);
 
         if(argChild){
           output += argChild.getName()+":\n";
-          output += argChild.printChildren();
+          output += argChild.toStringChildren();
         }else{
           errorOutput += 'ls: '+args[i]+': no such file or directory\n';
         }
       }
     }else{
-      output += this.cwd.printChildren();
+      output += this.cwd.toStringChildren();
     }
 
     return errorOutput+output;
@@ -147,7 +228,7 @@ class FileSystem{
       newDirectory.addChild(cssNode);
       newDirectory.addChild(htmlNode);
 
-      this.cwd.addChild(newDirectory);
+      this.addChild(newDirectory);
     }
   }
 
