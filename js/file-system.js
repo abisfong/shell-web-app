@@ -9,8 +9,8 @@ const FILE = 'file';
  * NOTE: All directories or files are Nodes. All Nodes are capable of
  * having child Nodes.
  * -------------------------------------------------------------------------- */
-class Node{
-  constructor(type, name){
+class Node {
+  constructor(type, name) {
     this.type = type;
     this.name = name;
     this.children = {};
@@ -23,7 +23,7 @@ class Node{
    * PARAM TYPE: Array of Nodes
    * RETRN TYPE: void
    */
-  addChild(newChild, name=newChild.name){
+  addChild(newChild, name = newChild.name) {
     this.children[name] = newChild;
     this.childCount++;
   }
@@ -33,7 +33,7 @@ class Node{
    * PARAM TYPE: String
    * RETRN TYPE: Node
    */
-  getChild(name){
+  getChild(name) {
     return this.children[name];
   }
 
@@ -42,8 +42,23 @@ class Node{
    * PARAM TYPE: void
    * RETRN TYPE: Number
    */
-  getChildCount(){
+  getChildCount() {
     return this.childCount;
+  }
+
+  /*
+   * DESC: Gets names of all children
+   * PARAM TYPE: void
+   * RETRN TYPE: Array
+   */
+  getChildNames() {
+    console.log('In get child names');
+    var childNames = [];
+    for (var childName in this.children) {
+      childNames.push(childName);
+    }
+    console.log('Returning from get child names');
+    return childNames;
   }
 
   /*
@@ -51,7 +66,7 @@ class Node{
    * PARAM TYPE: void
    * RETRN TYPE: String
    */
-  getName(){
+  getName() {
     return this.name;
   }
 
@@ -60,7 +75,7 @@ class Node{
    * PARAM TYPE: void
    * RETRN TYPE: String
    */
-  getType(){
+  getType() {
     return this.type;
   }
 
@@ -69,26 +84,8 @@ class Node{
    * PARAM TYPE: file
    * RETRN TYPE: void
    */
-  setContent(content){
+  setContent(content) {
     this.content = content;
-  }
-
-  /*
-   * DESC: Creates string consisting of names of child Nodes separated by
-   *       specified separator. Separator defaults to tab.
-   * PARAM TYPE: String or Char
-   * RETRN TYPE: String
-   */
-  toStringChildren(separator = '\t'){
-    var output = '';
-    var loopCount = 0;
-    for(var name in this.children){
-      output += name;
-      if(loopCount+1 <= this.childCount)
-        output += separator;
-      loopCount++;
-    }
-    return output;
   }
 }
 
@@ -96,8 +93,8 @@ class Node{
  *                              DESCRIPTION
  * File system class that mimics a file system and command line functionality
  * -------------------------------------------------------------------------- */
-class FileSystem{
-  constructor(){
+class FileSystem {
+  constructor() {
     this.root = this.nodeInit(DIRECTORY, 'ROOT');
     this.cwd = this.root;
   }
@@ -107,20 +104,63 @@ class FileSystem{
    * PARAM TYPE: String
    * RETRN TYPE: String
    */
-  executeCommand(command){
-    if(this[command[0]]){
-      return this[command[0]](command.splice(1).sort());
-    }else{
-      return command[0]+': command not found\n';
+  executeCommand(command, flags) {
+    console.log('In executeCommand');
+    console.log('command:');
+    console.log(command);
+    if (this[command[0]]) {
+      /*
+       * If a function from this object other than a command is called, it will
+       * fail. Catch the failure and return an error message.
+       */
+      try {
+        return this[command[0]](command.splice(1).sort(), flags);
+      } catch (error) {
+        console.log(error);
+        return command[0] + ': command not found (2)';
+      }
+    } else {
+      return command[0] + ': command not found';
     }
+  }
+
+  /*
+   * DESC: finds flags that begin with '-' within a command. Returns flags
+   *       found as object and split command string without flags.
+   * PARAM TYPE: String
+   * RETRN TYPE: [Object, String]
+   */
+  findFlags(command) {
+    var flags = {};
+    var commandSplit = command.trim().split(' ');
+
+    /*
+     * Look through command string arguments for flags. If a flag is found,
+     * save it then splice it out of the split command string array.
+     */
+    for (var i = 0; i < commandSplit.length; ++i) {
+      if (commandSplit[i][0] == '-') {
+        for (var j = 1; j < commandSplit[i].length; ++j) {
+          if (commandSplit[i][j].match(/[a-z]/i))
+            flags[commandSplit[i][j]] = commandSplit[i][j];
+        }
+        commandSplit.splice(i, 1);
+      }
+    }
+
+    console.log('flags:');
+    console.log(flags);
+
+    /* As a pair, return the split command string array and the flags found */
+    return [commandSplit, flags];
   }
 
   /*
    * DESC: finds Node of correspoding path.
    * PARAM TYPE: String
-   * RETRN TYPE: [Node, assumedNameForNewNode], [Node, null], null
+   * RETRN TYPE: [Node, String], [Node, null], null
    */
-  findPath(path){
+  findPath(path) {
     console.log('path:');
     console.log(path);
     /* Split path string at '/' */
@@ -129,15 +169,15 @@ class FileSystem{
     console.log(pathSplit);
 
     /* On split, some indices may contain ''. Delete those that do */
-    for(var i = 0; i < pathSplit.length; ++i){
-      if(pathSplit[i] == '')
+    for (var i = 0; i < pathSplit.length; ++i) {
+      if (pathSplit[i] == '')
         pathSplit.splice(i, 1);
     }
 
     /* Check if path starts at root. Else begin search from cwd */
-    if(path[0] == '/'){
+    if (path[0] == '/') {
       return this.findPathRecursive(pathSplit, this.root);
-    }else{
+    } else {
       return this.findPathRecursive(pathSplit, this.cwd);
     }
   }
@@ -149,9 +189,9 @@ class FileSystem{
    *       is for lookup only, the return value is [Node, null]. If there is an
    *       error in the path, the return value is null.
    * PARAM TYPE: String
-   * RETRN TYPE: [Node, assumedNameForNewNode], [Node, null], null
+   * RETRN TYPE: [Node, String], [Node, null], null
    */
-  findPathRecursive(path, startNode){
+  findPathRecursive(path, startNode) {
     /* Look for next node to traverse to using the next path name */
     var nextNode = startNode.children[path[0]];
 
@@ -160,7 +200,7 @@ class FileSystem{
      * through the path. Splice the first element of 'path' so that the next
      * path name is used in the next traversal.
      */
-    if(nextNode)
+    if (nextNode)
       return this.findPathRecursive(path.splice(1), nextNode);
     /*
      * If path name does not exist, then nextNode will be undefined. If 'path'
@@ -169,7 +209,7 @@ class FileSystem{
      * left to look at, then we have encountered an error and so no such path
      * exists; return null.
      */
-    else if(path.length > 1)
+    else if (path.length > 1)
       return null;
     /*
      * As explained above, if the path search was successful, we will be at the
@@ -186,6 +226,30 @@ class FileSystem{
   }
 
   /*
+   * DESC: Creates new file in system of specified type
+   * PARAM TYPE: Array, Object, String
+   * RETRN TYPE: String (on failure)
+   */
+  newSystemFile(paths, flags, type) {
+    for (var i = 0; i < paths.length; ++i) {
+      /* Retrieve Node of where to put new Node using given path */
+      var pathResult = this.findPath(paths[0]);
+      if (pathResult && pathResult[0] && pathResult != null) {
+        var parentFile = pathResult[0];
+        var fileName = pathResult[1];
+
+        /* Create new system file with specified type */
+        var newDirectory = this.nodeInit(type, fileName, parentFile);
+        parentFile.addChild(newDirectory);
+      } else if (pathResult[0] && pathResult == null) {
+        return 'mkdir:' + pathResults[0].name + ': File exists';
+      } else {
+        return 'mkdir: ' + paths[i] + ': no such file or directory';
+      }
+    }
+  }
+
+  /*
    * DESC: Initializes a new file system Node. Each node contains directories
            '.' and '..' on creation as well as files '.css' and '.html', which
            are used to render a Node's <section>.
@@ -193,7 +257,7 @@ class FileSystem{
    * PARAM TYPE: String, String, Node (defaults to null for creation of root)
    * RETRN TYPE: Node
    */
-  nodeInit(type, name, parent = null){
+  nodeInit(type, name, parent = null) {
     var newNode = new Node(type, name);
     var css = new Node(FILE, '.css');
     var html = new Node(FILE, '.html');
@@ -201,7 +265,7 @@ class FileSystem{
     newNode.addChild(css);
     newNode.addChild(html);
     newNode.addChild(newNode, '.');
-    if(parent)
+    if (parent)
       newNode.addChild(parent, '..');
     else
       newNode.addChild(newNode, '..');
@@ -209,12 +273,12 @@ class FileSystem{
   }
 
   /*
-   * DESC: Sets contents of a child Node of cwd. Contents can be a file, image,
+   * DESC: Sets contents of specified Node. Contents can be a file, image,
    *       etc.
    * PARAM TYPE: file, String
    * RETRN TYPE: void
    */
-  setContent(content, fileName){
+  uploadContent(content, fileName) {
     this.cwd.children[fileName].setContent(content);
   }
 
@@ -222,96 +286,134 @@ class FileSystem{
    *                               COMMANDS
    * ------------------------------------------------------------------------ */
 
-  /* Lists contents of specified directory. If none is specified, cwd is used */
-  ls(args){
-    var output = '';
-    var errorOutput = '';
-    var options = [];
+  /* Clears screen and scrollback unless -x is given. 'path' is ignored. */
+  clear(path, flags={}){
+    /* Flags check. If an illegal flag is found, return usage message. */
+    for (var flag in flags)
+      if (flag != 'x')
+        return 'clear: illegal option -- ' + flag +
+               '\nusage: clear [-x]';
 
     /*
-     * If multiple arguments are listed, try to list all their contents. Else,
-     * list the contents of the current working directory.
+     * Return indication of clear request and x flag, if defined. Clear
+     * request will be handled by Terminal class using terminal document.
      */
-    console.log('args:');
-    console.log(args);
-    if(args.length){
-      /* Iterate through argument list */
-      for(var i = 0; i < args.length; ++i){
-        /* Retrieve Node of last element in path */
-        var pathResult = this.findPath(args[i]);
-        console.log('pathResult:');
-        console.log(pathResult);
+    return ['clear-request', flags.x];
+  }
 
-        /*
-         * Using path results, check if path search was successful. Else
-         * indicate error.
-         */
-        if(pathResult && pathResult[0] && pathResult[1] == null){
-          /*
-           * Print path if search result is of file type. Else print directory
-           * contents
-           */
-          if(pathResult[0].getType() == FILE)
-            output += args[i]+'\n';
-          else{
-            /* Only include name of directory if listing more than one */
-            if(args.length > 1)
-              output += pathResult[0].getName()+":\n";
-            output += pathResult[0].toStringChildren()+'\n';
-          }
-        }else{
-          errorOutput += 'ls: '+args[i]+': no such file or directory\n';
-        }
+  cd(path, flags = {}) {
+    /* Flags check. If an illegal flag is found, return usage message. */
+    if (Object.entries(flags).length !== 0)
+      return 'cd: ' + Object.entries(flags)[0][0] + ': invalid option' +
+             '\nusage: cd [directory]';
+
+    /* If a path is specified, change directory to it. Else, go back to root */
+    if(path){
+      /* Retrieve Node of last element in path. Use only first path. */
+      var pathResult = this.findPath(path[0]);
+
+      /* If path exists, change cwd. Return error otherwise */
+      if (pathResult && pathResult[0] && pathResult[1] == null) {
+        this.cwd = pathResult[0];
+      } else {
+        return 'cd: ' + path[0] + ': no such file or directory';
       }
-    }else{
-      output += this.cwd.toStringChildren()+'\n';
+    } else {
+      this.cwd = this.root;
+    }
+  }
+
+  /* Lists contents of specified directory. If none is specified, cwd is used */
+  ls(args, flags = {}) {
+    var output = '';
+    var errorOutput = '';
+
+    /* Flags check. If an illegal flag is found, return usage message */
+    for (var flag in flags)
+      if (flag != 'a')
+        return 'ls: illegal option -- ' + flag + '\nusage: ls [-a] [file ...]';
+
+    /* If there are no arguments, push '.' so cwd contents are listed */
+    if (args.length < 1)
+      args.push('.');
+
+    /* Iterate through argument list */
+    for (var i = 0; i < args.length; ++i) {
+      /* Retrieve Node of last element in path */
+      var pathResult = this.findPath(args[i]);
+
+      /*
+       * Using path results, check if path search was successful. Else,
+       * indicate error.
+       */
+      if (pathResult && pathResult[0] && pathResult[1] == null) {
+        /*
+         * Print path if search result is of file type. Else print directory
+         * contents
+         */
+        if (pathResult[0].getType() == FILE)
+          output += args[i];
+        else {
+          /* Get names of Node's children */
+          var childNames = pathResult[0].getChildNames();
+          /* Only include name of directory if listing more than one */
+          if (args.length > 1)
+            output += pathResult[0].getName() + ":\n";
+          for (i = 0; i < childNames.length; ++i) {
+            if (!flags.a && childNames[i][0] == '.') {
+              console.log('continuing, no print');
+              continue;
+            }
+            output += childNames[i] + '\t';
+          }
+        }
+      } else {
+        errorOutput += 'ls: ' + args[i] + ': no such file or directory';
+      }
     }
 
-    return errorOutput+output;
+    /* Return output, with error messages first */
+    return errorOutput + output;
   }
 
   /* Creates new directory under specified path */
-  mkdir(paths){
-    for(var i = 0; i < paths.length; ++i){
-      /* Retrieve Node of where to put new Node using given path */
-      var pathResult = this.findPath(paths[0]);
-      var parentDirectory = pathResult[0];
-      var directoryName = pathResult[1];
-
-      /* Create new directory and add it to parent directory children */
-      var newDirectory = this.nodeInit(DIRECTORY, directoryName, parentDirectory);
-      parentDirectory.addChild(newDirectory);
-    }
+  mkdir(paths, flags = {}) {
+    /* Flags check. If an illegal flag is found, return usage message */
+    if (Object.entries(flags).length !== 0)
+      return 'mkdir: illegal option -- ' + Object.entries(flags)[0][0] +
+             '\nusage: mkdir [directory ...]';
+    this.newSystemFile(paths, flags, DIRECTORY);
   }
 
-  /* Creates new file under current working directory. */
-  touch(fileName){
-    var newFile = newSystemNode(FILE, fileName);
-    this.cwd.addChild(newFile);
+  /* Returns path to cwd. Ignores 'paths' variable */
+  pwd(paths, flags={}){
+    var path = [];
+    var startNode = this.cwd;
+
+    /* Flags check. If an illegal flag is found, return usage message */
+    if (Object.entries(flags).length !== 0)
+      return 'pwd: ' + Object.entries(flags)[0][0] + ': invalid option ' +
+             '\nusage: pwd';
+
+    /* Find path to cwd */
+    while(startNode !== this.root){
+      path.push(startNode.getName());
+      startNode = startNode.children['..'];
+    }
+
+    /* Return String of path names flipped to the correct order and joined */
+    return '/'+path.reverse().join('/');
+  }
+
+  /* Creates new file under specified path. */
+  touch(paths, flags = {}) {
+    /* Flags check. If an illegal flag is found, return usage message */
+    if (Object.entries(flags).length !== 0)
+      return 'touch: illegal option -- ' + Object.entries(flags)[0][0] +
+             '\nusage: touch [file ...]';
+    this.newSystemFile(paths, flags, FILE);
   }
 }
-
-
-/* NOTES: mkdir and touch can use the same function to create nodes. Use a
-   separate function they both can use except each inserts the correct 'type'.
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

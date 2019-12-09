@@ -2,7 +2,7 @@
 /* -----------------------------------------------------------------------------
  * Command line class used to keep track of command line input
  */
-class TermDoc{
+class TerminalDocument{
   constructor(commandLineElement, prompt = "> "){
     this.commandLineElement = commandLineElement;
     /* Keeps track of all commands for entirety of instance */
@@ -14,23 +14,9 @@ class TermDoc{
     this.setOutput(prompt);
   }
 
-  /*
-   * Updates text position of start of most recent command.
-   * Updates command count
-   * Updates 'history' to keep track of all commands
-   */
-  setPosition(){
-    for(var i = this.position; i < this.commandLineElement.value.length; ++i){
-      if(this.commandLineElement.value[i] == '>'){
-        this.position = i+2;
-        this.history.push(this.commandLineElement.value.substring(i+2));
-      }
-    }
-  }
-
-  /* Adds output to command line string */
-  setOutput(output){
-    this.commandLineElement.value += output;
+  /* Gets command line element attached to this object */
+  getElement(){
+    return this.commandLineElement;
   }
 
   /* Returns array of all inputed commands */
@@ -46,6 +32,35 @@ class TermDoc{
   /* Returns index of start position of most recent command */
   getPostion(){
     return this.position;
+  }
+
+  /* Returns command line text */
+  getText(){
+    return this.commandLineElement.value;
+  }
+
+  /* Returns length of command line text */
+  getTextLength(){
+    return this.commandLineElement.value.length;
+  }
+
+  /*
+   * Updates text position of start of most recent command.
+   * Updates command count
+   * Updates 'history' to keep track of all commands
+   */
+  setHistory(){
+    for(var i = this.position; i < this.commandLineElement.value.length; ++i){
+      if(this.commandLineElement.value[i] == '>'){
+        this.position = i+2;
+        this.history.push(this.commandLineElement.value.substring(i+2));
+      }
+    }
+  }
+
+  /* Adds output to command line string */
+  setOutput(output){
+    this.commandLineElement.value += output;
   }
 
 }

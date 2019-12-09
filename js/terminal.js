@@ -5,14 +5,76 @@
  */
 class Terminal{
   constructor(commandLineElement){
-    this.termDoc = new TermDoc(commandLineElement);
-    this.fileSys = new FileSystem();
+    console.log('Terminal: constructor start');
+    this.td = new TerminalDocument(commandLineElement);
+    this.fs = new FileSystem();
+
+    /* Add event listeners to command line element */
+    console.log('Terminal: constructor end');
   }
 
-  /*
-   * Uses TerminalDoc object, which keeps track of command line input, to
-   * retrieve user input at command line and FileSystem's prototype to
-   * lookup the command's corresponding function. An error is printed if no
-   * such command exists.
-   */
+  eventFunctionFinder(eventName, eventObject){
+    this.keydown(eventObject);
+  }
+
+  keydown(event){
+    /* Do not allow deletion of prompt on 'backspace' click */
+    if(event.keyCode == 8){
+      if(this.td.getText()[this.td.getText().length-2] == '>'){
+        this.td.setOutput('  ');
+      }
+    }
+  }
+
+  keyup(event){
+    /*
+     * On carriage return:
+     *      - Read command
+     *      - Add the prompt to the cmd line string
+     */
+    if(event.keyCode == 13){
+      this.td.setHistory();
+      commandAndFlags = this.fs.findFlags(this.td.getLatestCommand());
+      resrult = this.fs.executeCommand(commandAndFlags[0], commandAndFlags[1]);
+      if(resrult)
+        this.td.setOutput(result);
+      this.td.setOutput("> ");
+    }
+  }
+
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* EOF */
