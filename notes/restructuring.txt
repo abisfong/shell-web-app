@@ -1,0 +1,4 @@
+shell.js:
+  Restructure rm and rmdir so that they use one function that accepts
+  a parameter that indicates what file type we should be looking at.
+  Make file-system handle system file deletions and not rm and rmdir

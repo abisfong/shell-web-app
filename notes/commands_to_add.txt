@@ -1,0 +1,16 @@
+commands to add and notes:
+
+echo:
+Use http://oliverelliott.org/article/computing/ref_unix/6/ for reference of
+functionality of echo.
+
+cat:
+Shows contents of a file. For images, PDFs, etc., print formatting code.
+
+Pipe:
+Allow for piping. Use code from OS class as reference if necessary. Pipes
+connect stdin to stdout.
+
+Redirection:
+Allow for redirection of input or output. When using >, overwrite or create file.
+When using >>, append to file.
